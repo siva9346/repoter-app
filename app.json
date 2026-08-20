@@ -17,7 +17,12 @@
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION"
+      ],
+      "package": "com.siva_4693.reporter"
     },
     "web": {
       "output": "static",
@@ -39,11 +44,25 @@
         {
           "locationWhenInUsePermission": "Reporter needs your location to record accurate visit distances."
         }
+      ],
+      [
+        "expo-speech-recognition",
+        {
+          "microphonePermission": "Allow Reporter to use the microphone for voice feedback.",
+          "speechRecognitionPermission": "Allow Reporter to use speech recognition for voice feedback.",
+          "androidSpeechServicePackages": ["com.google.android.googlequicksearchbox"]
+        }
       ]
     ],
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "6b20931a-ab48-41c7-a33f-b43622264498"
+      }
     }
   }
 }
