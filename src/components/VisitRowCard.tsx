@@ -43,7 +43,12 @@ export default function VisitRowCard({
     setCapturing('departure');
     try {
       const pos = await getCurrentPosition();
-      setValue(`rows.${index}.startTime`, new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+      // Only default the time on the *first* capture. Recapturing (to fix a
+      // bad GPS fix, say) should update coordinates only — it must never
+      // silently overwrite a time the salesperson already set or edited.
+      if (!watch(`rows.${index}.startTime`)) {
+        setValue(`rows.${index}.startTime`, new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+      }
       setValue(`rows.${index}.departureLat`, pos.latitude);
       setValue(`rows.${index}.departureLng`, pos.longitude);
       recomputeDistance();
@@ -59,7 +64,9 @@ export default function VisitRowCard({
     setCapturing('arrival');
     try {
       const pos = await getCurrentPosition();
-      setValue(`rows.${index}.arrivalTime`, new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+      if (!watch(`rows.${index}.arrivalTime`)) {
+        setValue(`rows.${index}.arrivalTime`, new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+      }
       setValue(`rows.${index}.arrivalLat`, pos.latitude);
       setValue(`rows.${index}.arrivalLng`, pos.longitude);
       recomputeDistance();
@@ -144,9 +151,23 @@ export default function VisitRowCard({
           ) : (
             <View style={styles.statusRow}>
               <MaterialCommunityIcons name="check-circle" size={16} color={theme.colors.secondary} />
-              <Text variant="bodySmall" style={styles.statusText}>
-                Departed at {row.startTime}
+              <Text variant="bodySmall" style={styles.statusLabel}>
+                Departed at
               </Text>
+              <Controller
+                control={control}
+                name={`rows.${index}.startTime`}
+                render={({ field }) => (
+                  <TextInput
+                    mode="outlined"
+                    dense
+                    value={field.value}
+                    onChangeText={field.onChange}
+                    style={styles.timeInput}
+                    contentStyle={styles.timeInputContent}
+                  />
+                )}
+              />
               <IconButton
                 icon="crosshairs-gps"
                 size={16}
@@ -186,9 +207,23 @@ export default function VisitRowCard({
           ) : (
             <View style={styles.statusRow}>
               <MaterialCommunityIcons name="check-circle" size={16} color={theme.colors.secondary} />
-              <Text variant="bodySmall" style={styles.statusText}>
-                Arrived at {row.arrivalTime}
+              <Text variant="bodySmall" style={styles.statusLabel}>
+                Arrived at
               </Text>
+              <Controller
+                control={control}
+                name={`rows.${index}.arrivalTime`}
+                render={({ field }) => (
+                  <TextInput
+                    mode="outlined"
+                    dense
+                    value={field.value}
+                    onChangeText={field.onChange}
+                    style={styles.timeInput}
+                    contentStyle={styles.timeInputContent}
+                  />
+                )}
+              />
               <IconButton
                 icon="flag-checkered"
                 size={16}
@@ -294,7 +329,9 @@ const styles = StyleSheet.create({
   fieldsContainer: { gap: 12 },
   lockedContent: { opacity: 0.6 },
   statusRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  statusText: { flex: 1, opacity: 0.8 },
+  statusLabel: { opacity: 0.8 },
+  timeInput: { flex: 1, height: 36 },
+  timeInputContent: { fontSize: 12 },
   recaptureButton: { margin: 0 },
   chip: { alignSelf: 'flex-start' },
   chipSynced: { backgroundColor: '#D5F0EB' },
