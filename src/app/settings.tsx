@@ -10,6 +10,7 @@ export default function SettingsScreen() {
   const settings = useReporterStore((s) => s.settings);
   const saveSettings = useReporterStore((s) => s.saveSettings);
   const [saved, setSaved] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   const {
     control,
@@ -24,8 +25,10 @@ export default function SettingsScreen() {
     if (settings) reset(settings);
   }, [settings, reset]);
 
-  const onSubmit = (values: Settings) => {
-    saveSettings(values);
+  const onSubmit = async (values: Settings) => {
+    setSaving(true);
+    await saveSettings(values);
+    setSaving(false);
     setSaved(true);
   };
 
@@ -86,7 +89,8 @@ export default function SettingsScreen() {
           <Button
             mode="contained"
             onPress={handleSubmit(onSubmit)}
-            disabled={!isDirty && !!settings}
+            loading={saving}
+            disabled={saving || (!isDirty && !!settings)}
             style={styles.button}
           >
             Save Settings

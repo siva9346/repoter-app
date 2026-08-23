@@ -7,6 +7,7 @@ import {
   deleteMasterEntry,
   fetchMasters,
   submitReport,
+  pushSalespersonProfile,
   isBackendConfigured,
 } from './appsScript';
 import { generateId } from './id';
@@ -18,7 +19,7 @@ interface ReporterState {
   reports: DailyReport[];
 
   setHasHydrated: (v: boolean) => void;
-  saveSettings: (s: Settings) => void;
+  saveSettings: (s: Settings) => Promise<void>;
 
   addMaster: (type: MasterType, entry: { name: string; place: string; address: string }) => Promise<void>;
   removeMaster: (entry: MasterEntry) => Promise<void>;
@@ -51,7 +52,17 @@ export const useReporterStore = create<ReporterState>()(
 
       setHasHydrated: (v) => set({ hasHydrated: v }),
 
-      saveSettings: (s) => set({ settings: s }),
+      saveSettings: async (s) => {
+        set({ settings: s });
+        if (isBackendConfigured()) {
+          try {
+            await pushSalespersonProfile(s);
+          } catch {
+            // profile stays saved locally even if the sync attempt fails;
+            // it'll just push again next time Settings is saved
+          }
+        }
+      },
 
       addMaster: async (type, entry) => {
         let synced = false;

@@ -1,4 +1,4 @@
-import type { DailyReport, MasterType } from './types';
+import type { DailyReport, MasterType, Settings } from './types';
 
 const APPS_SCRIPT_URL = process.env.EXPO_PUBLIC_APPS_SCRIPT_URL || '';
 
@@ -61,6 +61,10 @@ export async function pushMasterEntry(
 export async function deleteMasterEntry(type: MasterType, name: string): Promise<void> {
   const action = type === 'customer' ? 'deleteCustomer' : 'deleteStayLocation';
   await post({ action, name });
+}
+
+export async function pushSalespersonProfile(settings: Settings): Promise<void> {
+  await post({ action: 'saveSalesperson', settings });
 }
 
 interface SubmitReportResponse {

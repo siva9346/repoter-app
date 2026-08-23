@@ -23,6 +23,9 @@ var REPORTS_HEADERS = [
 var CUSTOMERS_HEADERS = ['Name', 'Place', 'Address'];
 var STAYS_HEADERS = ['Name', 'Place', 'Address'];
 
+var SALESPERSONS_SHEET = 'Salespersons';
+var SALESPERSONS_HEADERS = ['Name', 'Employee Id', 'Mobile Number', 'Updated At'];
+
 function getSheet_(name, headers) {
   var ss = SpreadsheetApp.getActiveSpreadsheet();
   var sheet = ss.getSheetByName(name);
@@ -63,6 +66,11 @@ function doGet(e) {
       var customers = sheetToObjects_(getSheet_(CUSTOMERS_SHEET, CUSTOMERS_HEADERS));
       var stayLocations = sheetToObjects_(getSheet_(STAYS_SHEET, STAYS_HEADERS));
       return jsonOut_({ ok: true, customers: customers, stayLocations: stayLocations });
+    }
+
+    if (action === 'salespersons') {
+      var salespersons = sheetToObjects_(getSheet_(SALESPERSONS_SHEET, SALESPERSONS_HEADERS));
+      return jsonOut_({ ok: true, salespersons: salespersons });
     }
 
     if (action === 'reports') {
@@ -114,6 +122,9 @@ function doPost(e) {
     if (action === 'deletestaylocation') {
       return jsonOut_(deleteRowByName_(STAYS_SHEET, STAYS_HEADERS, body.name));
     }
+    if (action === 'savesalesperson') {
+      return jsonOut_(saveSalesperson_(body.settings));
+    }
 
     return jsonOut_({ ok: false, error: 'Unknown action: ' + body.action });
   } catch (err) {
@@ -125,6 +136,30 @@ function addRow_(sheetName, headers, record) {
   if (!record || !record.name) return { ok: false, error: 'Missing name' };
   var sheet = getSheet_(sheetName, headers);
   sheet.appendRow([record.name, record.place || '', record.address || '']);
+  return { ok: true };
+}
+
+function saveSalesperson_(settings) {
+  if (!settings || !settings.salesPersonName) return { ok: false, error: 'Missing salesPersonName' };
+  var sheet = getSheet_(SALESPERSONS_SHEET, SALESPERSONS_HEADERS);
+  var values = sheet.getDataRange().getValues();
+  var updatedAt = new Date();
+  var row = [
+    settings.salesPersonName,
+    settings.employeeId || '',
+    settings.mobileNumber || '',
+    updatedAt
+  ];
+  // Upsert by name — Settings is a single profile per salesperson, so
+  // saving again should update their existing row, not pile up duplicates
+  // the way an append-only log (like visits) is supposed to.
+  for (var i = 1; i < values.length; i++) {
+    if (values[i][0] === settings.salesPersonName) {
+      sheet.getRange(i + 1, 1, 1, row.length).setValues([row]);
+      return { ok: true };
+    }
+  }
+  sheet.appendRow(row);
   return { ok: true };
 }
 
