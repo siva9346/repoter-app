@@ -26,6 +26,7 @@ export default function NewVisitScreen() {
 
   const [date, setDate] = useState(() => params.date || todayStr());
   const [travelMode, setTravelMode] = useState<TravelMode>('bike');
+  const [dailyAllowance, setDailyAllowance] = useState('');
   const [submittingIndex, setSubmittingIndex] = useState<number | null>(null);
   const [sharingPdf, setSharingPdf] = useState(false);
   const [snackbar, setSnackbar] = useState<{ visible: boolean; message: string }>({ visible: false, message: '' });
@@ -156,6 +157,7 @@ export default function NewVisitScreen() {
       status: 'draft',
       createdAt: Date.now(),
       updatedAt: Date.now(),
+      dailyAllowance: dailyAllowance ? Number(dailyAllowance) : undefined,
     };
     if (report.rows.length === 0) {
       setSnackbar({ visible: true, message: 'Submit at least one visit before sharing a report.' });
@@ -243,9 +245,30 @@ export default function NewVisitScreen() {
           Add Visit
         </Button>
 
-        <Button mode="contained" icon="file-pdf-box" onPress={handleSharePdf} loading={sharingPdf} disabled={sharingPdf}>
-          Share Day&apos;s Report as PDF
-        </Button>
+        <Card mode="outlined">
+          <Card.Content style={styles.allowanceCard}>
+            <Text variant="bodySmall" style={styles.travelModeLabel}>
+              Daily allowance (optional, ₹)
+            </Text>
+            <TextInput
+              mode="outlined"
+              keyboardType="numeric"
+              placeholder="e.g. 150"
+              value={dailyAllowance}
+              onChangeText={setDailyAllowance}
+            />
+            <Button
+              mode="contained"
+              icon="file-pdf-box"
+              onPress={handleSharePdf}
+              loading={sharingPdf}
+              disabled={sharingPdf}
+              style={styles.shareButton}
+            >
+              Share Day&apos;s Report as PDF
+            </Button>
+          </Card.Content>
+        </Card>
       </ScrollView>
 
       <Snackbar
@@ -267,6 +290,8 @@ const styles = StyleSheet.create({
   headerCard: {},
   headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 12 },
   travelModeLabel: { opacity: 0.7, marginBottom: 6 },
+  allowanceCard: { gap: 12 },
+  shareButton: { marginTop: 4 },
   bold: { fontWeight: '700' },
   dateInput: { width: 160 },
   hint: { opacity: 0.7, textAlign: 'center' },

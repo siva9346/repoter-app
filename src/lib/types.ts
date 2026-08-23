@@ -58,7 +58,14 @@ export interface DailyReport {
   createdAt: number;
   updatedAt: number;
   reportId?: string;
+  // Optional fixed reimbursement for the day (food/incidentals), separate
+  // from any per-visit travel cost — entered once per report, not derived.
+  dailyAllowance?: number;
 }
+
+// Bike trips have no ticket to record, so their expense-sheet fare is
+// calculated from distance instead of entered directly.
+export const BIKE_FARE_PER_KM = 3.5;
 
 export function emptyVisitRow(sNo: number, travelMode: TravelMode = 'bike'): VisitRow {
   return {
