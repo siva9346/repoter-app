@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from 'react-native';
 import { useForm, useFieldArray } from 'react-hook-form';
+import { useLocalSearchParams } from 'expo-router';
 import { format } from 'date-fns';
 import { Button, Card, Snackbar, Text, TextInput } from 'react-native-paper';
 import { useReporterStore } from '@/lib/store';
@@ -13,6 +14,7 @@ import VisitRowCard from '@/components/VisitRowCard';
 const todayStr = () => format(new Date(), 'yyyy-MM-dd');
 
 export default function NewVisitScreen() {
+  const params = useLocalSearchParams<{ date?: string }>();
   const settings = useReporterStore((s) => s.settings);
   const masters = useReporterStore((s) => s.masters);
   const reports = useReporterStore((s) => s.reports);
@@ -20,11 +22,21 @@ export default function NewVisitScreen() {
   const submitVisitRow = useReporterStore((s) => s.submitVisitRow);
   const masterOptions = masters.map((m) => m.name).sort();
 
-  const [date, setDate] = useState(todayStr());
+  const [date, setDate] = useState(() => params.date || todayStr());
   const [submittingIndex, setSubmittingIndex] = useState<number | null>(null);
   const [sharingPdf, setSharingPdf] = useState(false);
   const [snackbar, setSnackbar] = useState<{ visible: boolean; message: string }>({ visible: false, message: '' });
   const loadedForDate = useRef<string | null>(null);
+
+  // "Open" on a report from the Reports screen navigates here with a date
+  // param — without this, the form always defaulted back to today, so
+  // opening a past pending report silently showed a blank current-day form.
+  useEffect(() => {
+    if (params.date && params.date !== date) {
+      setDate(params.date);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [params.date]);
 
   const { control, watch, setValue, getValues, reset } = useForm<ReportFormValues>({
     defaultValues: { date, rows: [emptyVisitRow(1)] },

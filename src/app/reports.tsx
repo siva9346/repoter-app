@@ -105,7 +105,7 @@ export default function ReportsScreen() {
                   <Chip compact style={r.status === 'pending-sync' ? styles.chipWarning : undefined}>
                     {r.status === 'pending-sync' ? 'Pending sync' : 'Draft'}
                   </Chip>
-                  <Button compact onPress={() => router.push('/new-visit')}>
+                  <Button compact onPress={() => router.push({ pathname: '/new-visit', params: { date: r.date } })}>
                     Open
                   </Button>
                 </View>
