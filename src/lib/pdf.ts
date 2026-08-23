@@ -41,25 +41,59 @@ function buildHtml(report: DailyReport): string {
     .join('');
 
   // Travel mode is chosen once per day (see New Visit's day-level toggle),
-  // so every row here shares it — the expense sheet's fare column and its
-  // formula are decided once for the whole report, not per row.
+  // so every row here shares it — the expense sheet's format is decided
+  // once for the whole report, not per row. Bus/auto keeps a route-by-route
+  // ticket table (each fare was typed in separately, so it's real line-item
+  // data); bike has nothing per-stop to itemize — it's one calculated rate
+  // times the day's total distance — so it's just a total, not a table.
   const isBusDay = report.rows[0]?.travelMode === 'bus';
-  const expenseHeader = isBusDay ? 'Bus Ticket / Auto Fare' : `Bike Fare (₹${BIKE_FARE_PER_KM}/km)`;
-  const expenseRows = report.rows.map((r) => ({
-    route: `${r.departure} to ${r.arrival}`,
-    fare: isBusDay ? r.busFare || 0 : (r.distanceKm || 0) * BIKE_FARE_PER_KM,
-  }));
-  const travelExpenseTotal = expenseRows.reduce((sum, r) => sum + r.fare, 0);
   const dailyAllowance = report.dailyAllowance || 0;
-  const totalExpenses = travelExpenseTotal + dailyAllowance;
 
-  const expenseRowsHtml = expenseRows
-    .map((r) => `<tr><td>${escapeHtml(r.route)}</td><td class="num">${r.fare.toFixed(2)}</td></tr>`)
-    .join('');
-  const allowanceRowHtml =
-    dailyAllowance > 0
-      ? `<tr><td>Daily Allowances</td><td class="num">${dailyAllowance.toFixed(2)}</td></tr>`
-      : '';
+  let expenseSectionHtml: string;
+  if (isBusDay) {
+    const expenseRows = report.rows.map((r) => ({
+      route: `${r.departure} to ${r.arrival}`,
+      fare: r.busFare || 0,
+    }));
+    const travelExpenseTotal = expenseRows.reduce((sum, r) => sum + r.fare, 0);
+    const totalExpenses = travelExpenseTotal + dailyAllowance;
+    const expenseRowsHtml = expenseRows
+      .map((r) => `<tr><td>${escapeHtml(r.route)}</td><td class="num">${r.fare.toFixed(2)}</td></tr>`)
+      .join('');
+    const allowanceRowHtml =
+      dailyAllowance > 0
+        ? `<tr><td>Daily Allowances</td><td class="num">${dailyAllowance.toFixed(2)}</td></tr>`
+        : '';
+    expenseSectionHtml = `
+      <table class="expense-table">
+        <colgroup><col /><col style="width: 30%" /></colgroup>
+        <thead>
+          <tr><th>Route</th><th class="num">Bus Ticket / Auto Fare</th></tr>
+        </thead>
+        <tbody>
+          ${expenseRowsHtml}
+          ${allowanceRowHtml}
+          <tr class="total-row"><td>Total Expenses</td><td class="num">${totalExpenses.toFixed(2)}</td></tr>
+        </tbody>
+      </table>`;
+  } else {
+    const totalKm = report.rows.reduce((sum, r) => sum + (r.distanceKm || 0), 0);
+    const bikeFareTotal = totalKm * BIKE_FARE_PER_KM;
+    const totalExpenses = bikeFareTotal + dailyAllowance;
+    const allowanceRowHtml =
+      dailyAllowance > 0
+        ? `<tr><td>Daily Allowances</td><td class="num">${dailyAllowance.toFixed(2)}</td></tr>`
+        : '';
+    expenseSectionHtml = `
+      <table class="expense-table">
+        <tbody>
+          <tr><td>Total Distance</td><td class="num">${totalKm.toFixed(1)} KM</td></tr>
+          <tr><td>Bike Fare (₹${BIKE_FARE_PER_KM}/km)</td><td class="num">${bikeFareTotal.toFixed(2)}</td></tr>
+          ${allowanceRowHtml}
+          <tr class="total-row"><td>Total Expenses</td><td class="num">${totalExpenses.toFixed(2)}</td></tr>
+        </tbody>
+      </table>`;
+  }
 
   return `
     <html>
@@ -108,17 +142,7 @@ function buildHtml(report: DailyReport): string {
         </table>
 
         <h2>Expense Details</h2>
-        <table class="expense-table">
-          <colgroup><col /><col style="width: 30%" /></colgroup>
-          <thead>
-            <tr><th>Route</th><th class="num">${expenseHeader}</th></tr>
-          </thead>
-          <tbody>
-            ${expenseRowsHtml}
-            ${allowanceRowHtml}
-            <tr class="total-row"><td>Total Expenses</td><td class="num">${totalExpenses.toFixed(2)}</td></tr>
-          </tbody>
-        </table>
+        ${expenseSectionHtml}
       </body>
     </html>
   `;
