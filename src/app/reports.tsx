@@ -45,8 +45,6 @@ export default function ReportsScreen() {
   const localReports = useMemo(() => reports.filter((r) => r.status !== 'synced'), [reports]);
 
   const [date, setDate] = useState('');
-  const [salesPerson, setSalesPerson] = useState('');
-  const [customer, setCustomer] = useState('');
   const [remoteRows, setRemoteRows] = useState<RemoteReportRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [exporting, setExporting] = useState(false);
@@ -62,7 +60,7 @@ export default function ReportsScreen() {
     setLoading(true);
     setError(null);
     try {
-      const rows = await fetchReports({ date, salesPerson, customer });
+      const rows = await fetchReports({ date });
       setRemoteRows(rows);
     } catch {
       setError('Could not reach the backend. Showing on-device reports only.');
@@ -70,7 +68,7 @@ export default function ReportsScreen() {
       setLoading(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [date, salesPerson, customer]);
+  }, [date]);
 
   useFocusEffect(
     useCallback(() => {
@@ -137,28 +135,11 @@ export default function ReportsScreen() {
           <Text variant="titleSmall" style={styles.bold}>
             Search submitted reports
           </Text>
-          <View style={styles.searchRow}>
-            <TextInput
-              label="Date (YYYY-MM-DD)"
-              mode="outlined"
-              value={date}
-              onChangeText={setDate}
-              style={styles.flexInput}
-            />
-            <TextInput
-              label="Salesperson"
-              mode="outlined"
-              value={salesPerson}
-              onChangeText={setSalesPerson}
-              style={styles.flexInput}
-            />
-          </View>
           <TextInput
-            label="Customer name"
+            label="Date (YYYY-MM-DD)"
             mode="outlined"
-            placeholder="View visit history for a customer"
-            value={customer}
-            onChangeText={setCustomer}
+            value={date}
+            onChangeText={setDate}
           />
           <View style={styles.searchRow}>
             <Button mode="contained" onPress={runSearch} loading={loading} style={styles.flexInput}>
