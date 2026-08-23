@@ -9,6 +9,7 @@ import { emptyVisitRow } from '@/lib/types';
 import type { DailyReport, TravelMode } from '@/lib/types';
 import type { ReportFormValues } from '@/lib/reportForm';
 import { shareDailyReportPdf } from '@/lib/pdf';
+import { fetchReports, isBackendConfigured, remoteRowsToVisitRows } from '@/lib/appsScript';
 import VisitRowCard from '@/components/VisitRowCard';
 
 const todayStr = () => format(new Date(), 'yyyy-MM-dd');
@@ -19,6 +20,7 @@ export default function NewVisitScreen() {
   const masters = useReporterStore((s) => s.masters);
   const reports = useReporterStore((s) => s.reports);
   const saveDraft = useReporterStore((s) => s.saveDraft);
+  const loadRemoteReport = useReporterStore((s) => s.loadRemoteReport);
   const submitVisitRow = useReporterStore((s) => s.submitVisitRow);
   const masterOptions = masters.map((m) => m.name).sort();
 
@@ -53,8 +55,35 @@ export default function NewVisitScreen() {
     if (existing && existing.rows.length > 0) {
       reset({ date, rows: existing.rows });
       setTravelMode(existing.rows[0].travelMode);
-    } else {
-      reset({ date, rows: [emptyVisitRow(1, travelMode)] });
+      return;
+    }
+
+    reset({ date, rows: [emptyVisitRow(1, travelMode)] });
+
+    // Nothing cached locally for this date — it may still exist on the
+    // server (submitted from a different device, e.g. a client's phone),
+    // so check before assuming there's genuinely nothing to edit.
+    if (isBackendConfigured()) {
+      fetchReports({ date })
+        .then((remoteRows) => {
+          if (remoteRows.length === 0 || loadedForDate.current !== date) return;
+          const visitRows = remoteRowsToVisitRows(remoteRows);
+          const remoteReport: DailyReport = {
+            id: date,
+            date,
+            salesPerson: remoteRows[0]['Sales Person'],
+            employeeId: remoteRows[0]['Employee Id'] || undefined,
+            rows: visitRows,
+            status: 'synced',
+            reportId: remoteRows[0]['Report Id'],
+            createdAt: Date.now(),
+            updatedAt: Date.now(),
+          };
+          loadRemoteReport(remoteReport);
+          reset({ date, rows: visitRows });
+          setTravelMode(visitRows[0].travelMode);
+        })
+        .catch(() => {});
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [date, settings]);

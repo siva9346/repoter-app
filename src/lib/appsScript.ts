@@ -1,4 +1,4 @@
-import type { DailyReport, MasterType, Settings } from './types';
+import type { DailyReport, MasterType, Settings, TravelMode, VisitRow } from './types';
 
 const APPS_SCRIPT_URL = process.env.EXPO_PUBLIC_APPS_SCRIPT_URL || '';
 
@@ -150,4 +150,36 @@ export async function fetchReports(filters: {
 export async function fetchDashboardData(): Promise<RemoteReportRow[]> {
   const data = await get<ReportsResponse>({ action: 'dashboard' });
   return data.reports || [];
+}
+
+// Lets New Visit hydrate a day's form from the sheet when it isn't cached
+// locally — e.g. a report submitted from a different device, or a fresh
+// install. Rows come back already submitted/synced since they exist on
+// the server.
+export function remoteRowsToVisitRows(rows: RemoteReportRow[]): VisitRow[] {
+  return rows
+    .slice()
+    .sort((a, b) => Number(a['S.No']) - Number(b['S.No']))
+    .map((r) => ({
+      localId: `${r['Report Id']}-${r['S.No']}`,
+      sNo: Number(r['S.No']),
+      travelMode: (r['Travel Mode'] === 'bus' ? 'bus' : 'bike') as TravelMode,
+      departure: r.Departure || '',
+      startTime: r['Start Time'] || '',
+      departureLat: r['Departure Latitude'] || undefined,
+      departureLng: r['Departure Longitude'] || undefined,
+      arrival: r.Arrival || '',
+      arrivalTime: r['Arrival Time'] || '',
+      arrivalLat: r['Arrival Latitude'] || undefined,
+      arrivalLng: r['Arrival Longitude'] || undefined,
+      distanceKm: r['Distance KM'] || undefined,
+      busFare: r['Bus Fare'] || undefined,
+      timeAtCustomer: r['Time At Customer'] || '',
+      metWith: r['Met With'] || '',
+      keyFeedback: r['Key Feedback'] || '',
+      comments: r.Comments || '',
+      followUpRequired: r['Follow Up Required'] === 'Yes',
+      submitted: true,
+      synced: true,
+    }));
 }

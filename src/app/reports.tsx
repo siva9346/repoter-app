@@ -192,6 +192,12 @@ export default function ReportsScreen() {
             right={({ isExpanded }) => (
               <View style={styles.accordionRight}>
                 <IconButton
+                  icon="pencil-outline"
+                  size={20}
+                  style={styles.downloadButton}
+                  onPress={() => router.push({ pathname: '/new-visit', params: { date: group.date } })}
+                />
+                <IconButton
                   icon="download"
                   size={20}
                   style={styles.downloadButton}

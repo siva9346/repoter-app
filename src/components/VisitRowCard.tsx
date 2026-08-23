@@ -129,14 +129,21 @@ export default function VisitRowCard({
           </Text>
           <View style={styles.headerRight}>
             {locked && (
-              <Chip
-                compact
-                icon={row.synced ? 'check-circle' : 'clock-outline'}
-                style={row.synced ? styles.chipSynced : styles.chipPending}
-                textStyle={styles.chipText}
-              >
-                {row.synced ? 'Submitted' : 'Pending sync'}
-              </Chip>
+              <>
+                <Chip
+                  compact
+                  icon={row.synced ? 'check-circle' : 'clock-outline'}
+                  style={row.synced ? styles.chipSynced : styles.chipPending}
+                  textStyle={styles.chipText}
+                >
+                  {row.synced ? 'Submitted' : 'Pending sync'}
+                </Chip>
+                <IconButton
+                  icon="pencil-outline"
+                  size={20}
+                  onPress={() => setValue(`rows.${index}.submitted`, false)}
+                />
+              </>
             )}
             {canRemove && !locked && <IconButton icon="delete-outline" size={20} onPress={remove} />}
           </View>

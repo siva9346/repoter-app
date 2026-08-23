@@ -184,15 +184,38 @@ function submitReport_(body) {
   var rows = body.rows || [];
   var submittedAt = new Date();
 
+  // Editing an already-submitted visit re-sends it through this same path.
+  // Without matching on (Report Id, S.No) first, that resubmission would
+  // just append a second row instead of replacing the original — an
+  // edited visit needs to overwrite its prior row in the sheet, not
+  // duplicate it.
+  var values = sheet.getDataRange().getValues();
+
   rows.forEach(function (r) {
-    sheet.appendRow([
+    var rowValues = [
       reportId, date, salesPerson, employeeId, r.sNo, r.travelMode || 'bike',
       r.departure, r.startTime, r.arrival, r.arrivalTime,
       r.distanceKm, r.busFare, r.timeAtCustomer, r.metWith, r.keyFeedback, r.comments,
       r.followUpRequired ? 'Yes' : 'No',
       r.departureLat, r.departureLng, r.arrivalLat, r.arrivalLng,
       submittedAt
-    ]);
+    ];
+
+    var existingRowIndex = -1;
+    for (var i = 1; i < values.length; i++) {
+      if (values[i][0] === reportId && Number(values[i][4]) === Number(r.sNo)) {
+        existingRowIndex = i;
+        break;
+      }
+    }
+
+    if (existingRowIndex === -1) {
+      sheet.appendRow(rowValues);
+      values.push(rowValues);
+    } else {
+      sheet.getRange(existingRowIndex + 1, 1, 1, rowValues.length).setValues([rowValues]);
+      values[existingRowIndex] = rowValues;
+    }
   });
 
   return { ok: true, reportId: reportId };

@@ -33,6 +33,7 @@ interface ReporterState {
     employeeId: string | undefined,
     rows: VisitRow[]
   ) => void;
+  loadRemoteReport: (report: DailyReport) => void;
   submitVisitRow: (
     date: string,
     salesPerson: string,
@@ -155,6 +156,13 @@ export const useReporterStore = create<ReporterState>()(
           };
           return { reports: [...state.reports.filter((r) => r.id !== id), updated] };
         });
+      },
+
+      // Caches a report fetched from the sheet (e.g. one submitted from a
+      // different device) so it can be reopened for editing here, exactly
+      // like a report this device originally submitted.
+      loadRemoteReport: (report) => {
+        set((state) => ({ reports: [...state.reports.filter((r) => r.id !== report.id), report] }));
       },
 
       // Submits a single visit row the moment the salesperson finishes it,
