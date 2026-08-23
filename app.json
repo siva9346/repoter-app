@@ -50,9 +50,12 @@
         {
           "microphonePermission": "Allow Reporter to use the microphone for voice feedback.",
           "speechRecognitionPermission": "Allow Reporter to use speech recognition for voice feedback.",
-          "androidSpeechServicePackages": ["com.google.android.googlequicksearchbox"]
+          "androidSpeechServicePackages": [
+            "com.google.android.googlequicksearchbox"
+          ]
         }
-      ]
+      ],
+      "@react-native-community/datetimepicker"
     ],
     "experiments": {
       "typedRoutes": true,

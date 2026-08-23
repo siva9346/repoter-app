@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import {
   Banner,
@@ -14,6 +14,8 @@ import {
   useTheme,
 } from 'react-native-paper';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
+import DateTimePicker, { type DateTimePickerEvent } from '@react-native-community/datetimepicker';
+import { format } from 'date-fns';
 import { useReporterStore } from '@/lib/store';
 import { fetchReports, isBackendConfigured, type RemoteReportRow } from '@/lib/appsScript';
 import { exportReportsToExcel } from '@/lib/export';
@@ -45,9 +47,9 @@ export default function ReportsScreen() {
   const localReports = useMemo(() => reports.filter((r) => r.status !== 'synced'), [reports]);
 
   const [date, setDate] = useState('');
+  const [showPicker, setShowPicker] = useState(false);
   const [remoteRows, setRemoteRows] = useState<RemoteReportRow[]>([]);
   const [loading, setLoading] = useState(false);
-  const [exporting, setExporting] = useState(false);
   const [exportingGroup, setExportingGroup] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
@@ -80,14 +82,10 @@ export default function ReportsScreen() {
 
   const groups = useMemo(() => groupRows(remoteRows), [remoteRows]);
 
-  const handleExport = async () => {
-    setExporting(true);
-    try {
-      await exportReportsToExcel(remoteRows);
-    } catch {
-      setError('Could not export to Excel.');
-    } finally {
-      setExporting(false);
+  const handleDateChange = (event: DateTimePickerEvent, selected?: Date) => {
+    if (Platform.OS === 'android') setShowPicker(false);
+    if (event.type === 'set' && selected) {
+      setDate(format(selected, 'yyyy-MM-dd'));
     }
   };
 
@@ -135,26 +133,34 @@ export default function ReportsScreen() {
           <Text variant="titleSmall" style={styles.bold}>
             Search submitted reports
           </Text>
-          <TextInput
-            label="Date (YYYY-MM-DD)"
-            mode="outlined"
-            value={date}
-            onChangeText={setDate}
-          />
-          <View style={styles.searchRow}>
-            <Button mode="contained" onPress={runSearch} loading={loading} style={styles.flexInput}>
-              Search
-            </Button>
-            <Button
+          <Pressable onPress={() => setShowPicker(true)}>
+            <TextInput
+              label="Date"
               mode="outlined"
-              icon="download"
-              onPress={handleExport}
-              loading={exporting}
-              disabled={remoteRows.length === 0}
-            >
-              Export
+              value={date}
+              placeholder="Tap to choose a date"
+              editable={false}
+              pointerEvents="none"
+              right={<TextInput.Icon icon="calendar" />}
+            />
+          </Pressable>
+          {!!date && (
+            <Button compact style={styles.clearDateButton} onPress={() => setDate('')}>
+              Clear date filter
             </Button>
-          </View>
+          )}
+          {showPicker && (
+            <DateTimePicker
+              value={date ? new Date(`${date}T00:00:00`) : new Date()}
+              mode="date"
+              display="default"
+              maximumDate={new Date()}
+              onChange={handleDateChange}
+            />
+          )}
+          <Button mode="contained" onPress={runSearch} loading={loading}>
+            Search
+          </Button>
         </Card.Content>
       </Card>
 
@@ -252,8 +258,7 @@ const styles = StyleSheet.create({
   localRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   localRowActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   chipWarning: { backgroundColor: '#ffe0b2' },
-  searchRow: { flexDirection: 'row', gap: 12 },
-  flexInput: { flex: 1 },
+  clearDateButton: { alignSelf: 'flex-start', marginTop: -8 },
   banner: { borderRadius: 8 },
   emptyText: { textAlign: 'center', opacity: 0.6, paddingVertical: 32 },
   accordion: {
