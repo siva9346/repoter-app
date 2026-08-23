@@ -78,11 +78,13 @@ export async function submitReport(report: DailyReport): Promise<{ reportId: str
     employeeId: report.employeeId,
     rows: report.rows.map((r) => ({
       sNo: r.sNo,
+      travelMode: r.travelMode,
       departure: r.departure,
       startTime: r.startTime,
       arrival: r.arrival,
       arrivalTime: r.arrivalTime,
       distanceKm: r.distanceKm,
+      busFare: r.busFare,
       timeAtCustomer: r.timeAtCustomer,
       metWith: r.metWith,
       keyFeedback: r.keyFeedback,
@@ -104,11 +106,13 @@ export interface RemoteReportRow {
   'Sales Person': string;
   'Employee Id': string;
   'S.No': number;
+  'Travel Mode': string;
   Departure: string;
   'Start Time': string;
   Arrival: string;
   'Arrival Time': string;
   'Distance KM': number;
+  'Bus Fare': number;
   'Time At Customer': string;
   'Met With': string;
   'Key Feedback': string;

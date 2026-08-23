@@ -171,12 +171,17 @@ export default function ReportsScreen() {
       )}
 
       {groups.map((group) => {
-        const totalKm = group.rows.reduce((sum, r) => sum + (Number(r['Distance KM']) || 0), 0);
+        const totalKm = group.rows
+          .filter((r) => r['Travel Mode'] !== 'bus')
+          .reduce((sum, r) => sum + (Number(r['Distance KM']) || 0), 0);
+        const totalFare = group.rows
+          .filter((r) => r['Travel Mode'] === 'bus')
+          .reduce((sum, r) => sum + (Number(r['Bus Fare']) || 0), 0);
         return (
           <List.Accordion
             key={group.key}
             title={`${group.date} — ${group.salesPerson}`}
-            description={`${group.rows.length} visits · ${totalKm.toFixed(1)} KM`}
+            description={`${group.rows.length} visits · ${totalKm.toFixed(1)} KM · ₹${totalFare.toFixed(2)} fare`}
             expanded={expanded === group.key}
             onPress={() => setExpanded(expanded === group.key ? null : group.key)}
             style={styles.accordion}
@@ -185,24 +190,31 @@ export default function ReportsScreen() {
               <DataTable style={styles.table}>
                 <DataTable.Header>
                   <DataTable.Title style={styles.col}>#</DataTable.Title>
+                  <DataTable.Title style={styles.col}>Mode</DataTable.Title>
                   <DataTable.Title style={styles.colWide}>Departure</DataTable.Title>
                   <DataTable.Title style={styles.colWide}>Arrival</DataTable.Title>
-                  <DataTable.Title style={styles.col}>KM</DataTable.Title>
+                  <DataTable.Title style={styles.col}>KM / Fare</DataTable.Title>
                   <DataTable.Title style={styles.colWide}>Met With</DataTable.Title>
                   <DataTable.Title style={styles.col}>Follow-up</DataTable.Title>
                 </DataTable.Header>
-                {group.rows.map((row, i) => (
-                  <DataTable.Row key={i}>
-                    <DataTable.Cell style={styles.col}>{row['S.No']}</DataTable.Cell>
-                    <DataTable.Cell style={styles.colWide}>{row.Departure}</DataTable.Cell>
-                    <DataTable.Cell style={styles.colWide}>{row.Arrival}</DataTable.Cell>
-                    <DataTable.Cell style={styles.col}>{row['Distance KM']}</DataTable.Cell>
-                    <DataTable.Cell style={styles.colWide}>{row['Met With']}</DataTable.Cell>
-                    <DataTable.Cell style={styles.col}>
-                      {row['Follow Up Required'] === 'Yes' ? 'Yes' : ''}
-                    </DataTable.Cell>
-                  </DataTable.Row>
-                ))}
+                {group.rows.map((row, i) => {
+                  const isBus = row['Travel Mode'] === 'bus';
+                  return (
+                    <DataTable.Row key={i}>
+                      <DataTable.Cell style={styles.col}>{row['S.No']}</DataTable.Cell>
+                      <DataTable.Cell style={styles.col}>{isBus ? 'Bus' : 'Bike'}</DataTable.Cell>
+                      <DataTable.Cell style={styles.colWide}>{row.Departure}</DataTable.Cell>
+                      <DataTable.Cell style={styles.colWide}>{row.Arrival}</DataTable.Cell>
+                      <DataTable.Cell style={styles.col}>
+                        {isBus ? `₹${row['Bus Fare']}` : row['Distance KM']}
+                      </DataTable.Cell>
+                      <DataTable.Cell style={styles.colWide}>{row['Met With']}</DataTable.Cell>
+                      <DataTable.Cell style={styles.col}>
+                        {row['Follow Up Required'] === 'Yes' ? 'Yes' : ''}
+                      </DataTable.Cell>
+                    </DataTable.Row>
+                  );
+                })}
               </DataTable>
             </ScrollView>
           </List.Accordion>

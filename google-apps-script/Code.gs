@@ -3,7 +3,7 @@
  *
  * Deploy this bound to a Google Sheet (Extensions > Apps Script), then
  * Deploy > New deployment > Web app, execute as "Me", access "Anyone".
- * Copy the /exec URL into the Next.js app's NEXT_PUBLIC_APPS_SCRIPT_URL env var.
+ * Copy the /exec URL into the app's EXPO_PUBLIC_APPS_SCRIPT_URL env var.
  *
  * Sheets are created automatically on first run if missing.
  */
@@ -13,9 +13,9 @@ var CUSTOMERS_SHEET = 'Customers';
 var STAYS_SHEET = 'Stay Locations';
 
 var REPORTS_HEADERS = [
-  'Report Id', 'Date', 'Sales Person', 'Employee Id', 'S.No',
+  'Report Id', 'Date', 'Sales Person', 'Employee Id', 'S.No', 'Travel Mode',
   'Departure', 'Start Time', 'Arrival', 'Arrival Time',
-  'Distance KM', 'Time At Customer', 'Met With', 'Key Feedback', 'Comments',
+  'Distance KM', 'Bus Fare', 'Time At Customer', 'Met With', 'Key Feedback', 'Comments',
   'Follow Up Required', 'Departure Latitude', 'Departure Longitude',
   'Arrival Latitude', 'Arrival Longitude', 'Submitted At'
 ];
@@ -151,9 +151,9 @@ function submitReport_(body) {
 
   rows.forEach(function (r) {
     sheet.appendRow([
-      reportId, date, salesPerson, employeeId, r.sNo,
+      reportId, date, salesPerson, employeeId, r.sNo, r.travelMode || 'bike',
       r.departure, r.startTime, r.arrival, r.arrivalTime,
-      r.distanceKm, r.timeAtCustomer, r.metWith, r.keyFeedback, r.comments,
+      r.distanceKm, r.busFare, r.timeAtCustomer, r.metWith, r.keyFeedback, r.comments,
       r.followUpRequired ? 'Yes' : 'No',
       r.departureLat, r.departureLng, r.arrivalLat, r.arrivalLng,
       submittedAt

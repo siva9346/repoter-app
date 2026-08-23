@@ -15,9 +15,12 @@ export interface MasterEntry {
   synced: boolean;
 }
 
+export type TravelMode = 'bike' | 'bus';
+
 export interface VisitRow {
   localId: string;
   sNo: number;
+  travelMode: TravelMode;
   departure: string;
   startTime: string;
   departureLat?: number;
@@ -27,6 +30,9 @@ export interface VisitRow {
   arrivalLat?: number;
   arrivalLng?: number;
   distanceKm?: number;
+  // Only set when travelMode is 'bus' — a fare amount instead of a
+  // GPS-derived distance, since there's no vehicle GPS to track.
+  busFare?: number;
   timeAtCustomer: string;
   metWith: string;
   keyFeedback: string;
@@ -58,6 +64,7 @@ export function emptyVisitRow(sNo: number): VisitRow {
   return {
     localId: `${Date.now()}-${sNo}-${Math.random().toString(36).slice(2, 8)}`,
     sNo,
+    travelMode: 'bike',
     departure: '',
     startTime: '',
     arrival: '',

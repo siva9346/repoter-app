@@ -1,7 +1,19 @@
 import { useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { Controller, type Control, type UseFormSetValue, type UseFormWatch } from 'react-hook-form';
-import { Button, Card, Checkbox, Chip, Divider, HelperText, IconButton, Text, TextInput, useTheme } from 'react-native-paper';
+import {
+  Button,
+  Card,
+  Checkbox,
+  Chip,
+  Divider,
+  HelperText,
+  IconButton,
+  SegmentedButtons,
+  Text,
+  TextInput,
+  useTheme,
+} from 'react-native-paper';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import AutocompleteField from './AutocompleteField';
 import VoiceTextField from './VoiceTextField';
@@ -20,6 +32,8 @@ interface VisitRowCardProps {
   submitting: boolean;
 }
 
+const nowLabel = () => new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
 export default function VisitRowCard({
   index,
   control,
@@ -37,6 +51,7 @@ export default function VisitRowCard({
 
   const row = watch(`rows.${index}`);
   const locked = row?.submitted ?? false;
+  const isBus = row?.travelMode === 'bus';
 
   const captureDeparture = async () => {
     setGpsError(null);
@@ -47,7 +62,7 @@ export default function VisitRowCard({
       // bad GPS fix, say) should update coordinates only — it must never
       // silently overwrite a time the salesperson already set or edited.
       if (!watch(`rows.${index}.startTime`)) {
-        setValue(`rows.${index}.startTime`, new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+        setValue(`rows.${index}.startTime`, nowLabel());
       }
       setValue(`rows.${index}.departureLat`, pos.latitude);
       setValue(`rows.${index}.departureLng`, pos.longitude);
@@ -65,7 +80,7 @@ export default function VisitRowCard({
     try {
       const pos = await getCurrentPosition();
       if (!watch(`rows.${index}.arrivalTime`)) {
-        setValue(`rows.${index}.arrivalTime`, new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }));
+        setValue(`rows.${index}.arrivalTime`, nowLabel());
       }
       setValue(`rows.${index}.arrivalLat`, pos.latitude);
       setValue(`rows.${index}.arrivalLng`, pos.longitude);
@@ -93,11 +108,18 @@ export default function VisitRowCard({
     }
   };
 
+  const setModeTime = (field: 'startTime' | 'arrivalTime') => {
+    if (!watch(`rows.${index}.${field}`)) {
+      setValue(`rows.${index}.${field}`, nowLabel());
+    }
+  };
+
   const hasDeparture = row?.departureLat != null && row?.departureLng != null;
   const hasArrival = row?.arrivalLat != null && row?.arrivalLng != null;
   const sameLocation =
     !!row?.departure && !!row?.arrival && row.departure.trim().toLowerCase() === row.arrival.trim().toLowerCase();
-  const canSubmit = !!row?.departure && !!row?.arrival && !sameLocation;
+  const canSubmit =
+    !!row?.departure && !!row?.arrival && !sameLocation && (!isBus || (row?.busFare != null && row.busFare > 0));
 
   return (
     <Card style={styles.card} mode="outlined">
@@ -125,6 +147,22 @@ export default function VisitRowCard({
           <Text variant="labelSmall" style={styles.sectionLabel}>
             TRAVEL
           </Text>
+
+          <Controller
+            control={control}
+            name={`rows.${index}.travelMode`}
+            render={({ field }) => (
+              <SegmentedButtons
+                value={field.value}
+                onValueChange={field.onChange}
+                buttons={[
+                  { value: 'bike', label: 'Bike', icon: 'motorbike' },
+                  { value: 'bus', label: 'Bus', icon: 'bus' },
+                ]}
+              />
+            )}
+          />
+
           <Controller
             control={control}
             name={`rows.${index}.departure`}
@@ -138,7 +176,30 @@ export default function VisitRowCard({
               />
             )}
           />
-          {!hasDeparture ? (
+
+          {isBus ? (
+            <View style={styles.statusRow}>
+              <Text variant="bodySmall" style={styles.statusLabel}>
+                Departure time
+              </Text>
+              <Controller
+                control={control}
+                name={`rows.${index}.startTime`}
+                render={({ field }) => (
+                  <TextInput
+                    mode="outlined"
+                    dense
+                    placeholder="e.g. 09:05 AM"
+                    value={field.value}
+                    onChangeText={field.onChange}
+                    onFocus={() => setModeTime('startTime')}
+                    style={styles.timeInput}
+                    contentStyle={styles.timeInputContent}
+                  />
+                )}
+              />
+            </View>
+          ) : !hasDeparture ? (
             <Button
               mode="contained"
               icon="crosshairs-gps"
@@ -194,7 +255,30 @@ export default function VisitRowCard({
               />
             )}
           />
-          {!hasArrival ? (
+
+          {isBus ? (
+            <View style={styles.statusRow}>
+              <Text variant="bodySmall" style={styles.statusLabel}>
+                Arrival time
+              </Text>
+              <Controller
+                control={control}
+                name={`rows.${index}.arrivalTime`}
+                render={({ field }) => (
+                  <TextInput
+                    mode="outlined"
+                    dense
+                    placeholder="e.g. 09:40 AM"
+                    value={field.value}
+                    onChangeText={field.onChange}
+                    onFocus={() => setModeTime('arrivalTime')}
+                    style={styles.timeInput}
+                    contentStyle={styles.timeInputContent}
+                  />
+                )}
+              />
+            </View>
+          ) : !hasArrival ? (
             <Button
               mode="contained"
               icon="flag-checkered"
@@ -238,12 +322,29 @@ export default function VisitRowCard({
 
           {gpsError && <HelperText type="error">{gpsError}</HelperText>}
 
-          <View style={styles.distanceRow}>
-            <MaterialCommunityIcons name="map-marker-distance" size={16} color={theme.colors.onSurfaceVariant} />
-            <Text variant="bodyMedium" style={styles.distanceText}>
-              {row?.distanceKm != null ? `${row.distanceKm} KM` : 'Capture departure & arrival to calculate distance'}
-            </Text>
-          </View>
+          {isBus ? (
+            <Controller
+              control={control}
+              name={`rows.${index}.busFare`}
+              render={({ field }) => (
+                <TextInput
+                  label="Bus Fare (₹)"
+                  mode="outlined"
+                  keyboardType="numeric"
+                  left={<TextInput.Icon icon="bus" />}
+                  value={field.value != null ? String(field.value) : ''}
+                  onChangeText={(text) => field.onChange(text ? Number(text.replace(/[^0-9.]/g, '')) : undefined)}
+                />
+              )}
+            />
+          ) : (
+            <View style={styles.distanceRow}>
+              <MaterialCommunityIcons name="map-marker-distance" size={16} color={theme.colors.onSurfaceVariant} />
+              <Text variant="bodyMedium" style={styles.distanceText}>
+                {row?.distanceKm != null ? `${row.distanceKm} KM` : 'Capture departure & arrival to calculate distance'}
+              </Text>
+            </View>
+          )}
 
           <Divider style={styles.divider} />
 
