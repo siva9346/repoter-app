@@ -7,10 +7,13 @@ import {
   Card,
   Chip,
   DataTable,
+  IconButton,
   List,
   Text,
   TextInput,
+  useTheme,
 } from 'react-native-paper';
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { useReporterStore } from '@/lib/store';
 import { fetchReports, isBackendConfigured, type RemoteReportRow } from '@/lib/appsScript';
 import { exportReportsToExcel } from '@/lib/export';
@@ -36,6 +39,7 @@ function groupRows(rows: RemoteReportRow[]): ReportGroup[] {
 
 export default function ReportsScreen() {
   const router = useRouter();
+  const theme = useTheme();
   const reports = useReporterStore((s) => s.reports);
   const trySyncPendingReports = useReporterStore((s) => s.trySyncPendingReports);
   const localReports = useMemo(() => reports.filter((r) => r.status !== 'synced'), [reports]);
@@ -46,6 +50,7 @@ export default function ReportsScreen() {
   const [remoteRows, setRemoteRows] = useState<RemoteReportRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [exportingGroup, setExportingGroup] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
 
@@ -85,6 +90,18 @@ export default function ReportsScreen() {
       setError('Could not export to Excel.');
     } finally {
       setExporting(false);
+    }
+  };
+
+  const handleExportGroup = async (group: ReportGroup) => {
+    setExportingGroup(group.key);
+    try {
+      const safeName = group.salesPerson.replace(/[^a-z0-9]+/gi, '_');
+      await exportReportsToExcel(group.rows, `${group.date}-${safeName}.xlsx`);
+    } catch {
+      setError('Could not export that report.');
+    } finally {
+      setExportingGroup(null);
     }
   };
 
@@ -185,34 +202,56 @@ export default function ReportsScreen() {
             expanded={expanded === group.key}
             onPress={() => setExpanded(expanded === group.key ? null : group.key)}
             style={styles.accordion}
+            right={({ isExpanded }) => (
+              <View style={styles.accordionRight}>
+                <IconButton
+                  icon="download"
+                  size={20}
+                  style={styles.downloadButton}
+                  loading={exportingGroup === group.key}
+                  onPress={() => handleExportGroup(group)}
+                />
+                <MaterialCommunityIcons
+                  name={isExpanded ? 'chevron-up' : 'chevron-down'}
+                  size={24}
+                  color={theme.colors.onSurfaceVariant}
+                />
+              </View>
+            )}
           >
-            <ScrollView horizontal>
+            <ScrollView horizontal showsHorizontalScrollIndicator>
               <DataTable style={styles.table}>
-                <DataTable.Header>
-                  <DataTable.Title style={styles.col}>#</DataTable.Title>
-                  <DataTable.Title style={styles.col}>Mode</DataTable.Title>
-                  <DataTable.Title style={styles.colWide}>Departure</DataTable.Title>
-                  <DataTable.Title style={styles.colWide}>Arrival</DataTable.Title>
-                  <DataTable.Title style={styles.col}>KM / Fare</DataTable.Title>
-                  <DataTable.Title style={styles.colWide}>Met With</DataTable.Title>
-                  <DataTable.Title style={styles.col}>Follow-up</DataTable.Title>
+                <DataTable.Header style={styles.row}>
+                  <Text style={[styles.cellText, styles.cellSno, styles.headerText]}>#</Text>
+                  <Text style={[styles.cellText, styles.cellMode, styles.headerText]}>Mode</Text>
+                  <Text style={[styles.cellText, styles.cellPlace, styles.headerText]}>Departure</Text>
+                  <Text style={[styles.cellText, styles.cellPlace, styles.headerText]}>Arrival</Text>
+                  <Text style={[styles.cellText, styles.cellNum, styles.headerText]}>KM/Fare</Text>
+                  <Text style={[styles.cellText, styles.cellPlace, styles.headerText]}>Met With</Text>
+                  <Text style={[styles.cellText, styles.cellFollowUp, styles.headerText]}>Follow-up</Text>
                 </DataTable.Header>
                 {group.rows.map((row, i) => {
                   const isBus = row['Travel Mode'] === 'bus';
                   return (
-                    <DataTable.Row key={i}>
-                      <DataTable.Cell style={styles.col}>{row['S.No']}</DataTable.Cell>
-                      <DataTable.Cell style={styles.col}>{isBus ? 'Bus' : 'Bike'}</DataTable.Cell>
-                      <DataTable.Cell style={styles.colWide}>{row.Departure}</DataTable.Cell>
-                      <DataTable.Cell style={styles.colWide}>{row.Arrival}</DataTable.Cell>
-                      <DataTable.Cell style={styles.col}>
+                    <View key={i} style={styles.row}>
+                      <Text style={[styles.cellText, styles.cellSno]}>{row['S.No']}</Text>
+                      <Text style={[styles.cellText, styles.cellMode]}>{isBus ? 'Bus' : 'Bike'}</Text>
+                      <Text style={[styles.cellText, styles.cellPlace]} numberOfLines={1}>
+                        {row.Departure}
+                      </Text>
+                      <Text style={[styles.cellText, styles.cellPlace]} numberOfLines={1}>
+                        {row.Arrival}
+                      </Text>
+                      <Text style={[styles.cellText, styles.cellNum]}>
                         {isBus ? `₹${row['Bus Fare']}` : row['Distance KM']}
-                      </DataTable.Cell>
-                      <DataTable.Cell style={styles.colWide}>{row['Met With']}</DataTable.Cell>
-                      <DataTable.Cell style={styles.col}>
-                        {row['Follow Up Required'] === 'Yes' ? 'Yes' : ''}
-                      </DataTable.Cell>
-                    </DataTable.Row>
+                      </Text>
+                      <Text style={[styles.cellText, styles.cellPlace]} numberOfLines={1}>
+                        {row['Met With']}
+                      </Text>
+                      <Text style={[styles.cellText, styles.cellFollowUp]}>
+                        {row['Follow Up Required'] === 'Yes' ? 'Yes' : '—'}
+                      </Text>
+                    </View>
                   );
                 })}
               </DataTable>
@@ -243,7 +282,29 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#E2E4E8',
   },
-  table: { minWidth: 500 },
-  col: { flex: 0.6 },
-  colWide: { flex: 1.4 },
+  accordionRight: { flexDirection: 'row', alignItems: 'center' },
+  downloadButton: { margin: 0 },
+  // Fixed pixel widths (not flex) for every column, matched exactly
+  // between the header row and each data row — inside a horizontally
+  // scrolling container, flex-based widths don't have a stable parent
+  // width to distribute against, which is what was throwing header and
+  // cell columns out of alignment with each other.
+  table: { minWidth: 544, paddingHorizontal: 8 },
+  // DataTable.Header ships a default paddingHorizontal: 16 that our plain
+  // View data rows don't have — zeroed here so both start at the same
+  // x-offset and every column lines up between the header and the rows.
+  row: {
+    flexDirection: 'row',
+    paddingHorizontal: 0,
+    paddingVertical: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#EEF0F2',
+  },
+  cellText: { fontSize: 12, paddingHorizontal: 4, alignSelf: 'center' },
+  headerText: { fontWeight: '700', opacity: 0.6, fontSize: 11, textTransform: 'uppercase' },
+  cellSno: { width: 28, textAlign: 'center' },
+  cellMode: { width: 44 },
+  cellPlace: { width: 110 },
+  cellNum: { width: 62, textAlign: 'right' },
+  cellFollowUp: { width: 66, textAlign: 'center' },
 });
