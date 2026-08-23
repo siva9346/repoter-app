@@ -8,12 +8,9 @@ import {
   Chip,
   DataTable,
   IconButton,
-  List,
   Text,
   TextInput,
-  useTheme,
 } from 'react-native-paper';
-import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import DateTimePicker, { type DateTimePickerEvent } from '@react-native-community/datetimepicker';
 import { format } from 'date-fns';
 import { useReporterStore } from '@/lib/store';
@@ -41,7 +38,6 @@ function groupRows(rows: RemoteReportRow[]): ReportGroup[] {
 
 export default function ReportsScreen() {
   const router = useRouter();
-  const theme = useTheme();
   const reports = useReporterStore((s) => s.reports);
   const trySyncPendingReports = useReporterStore((s) => s.trySyncPendingReports);
   const localReports = useMemo(() => reports.filter((r) => r.status !== 'synced'), [reports]);
@@ -181,75 +177,87 @@ export default function ReportsScreen() {
         const totalFare = group.rows
           .filter((r) => r['Travel Mode'] === 'bus')
           .reduce((sum, r) => sum + (Number(r['Bus Fare']) || 0), 0);
+        const isExpanded = expanded === group.key;
         return (
-          <List.Accordion
-            key={group.key}
-            title={`${group.date} — ${group.salesPerson}`}
-            description={`${group.rows.length} visits · ${totalKm.toFixed(1)} KM · ₹${totalFare.toFixed(2)} fare`}
-            expanded={expanded === group.key}
-            onPress={() => setExpanded(expanded === group.key ? null : group.key)}
-            style={styles.accordion}
-            right={({ isExpanded }) => (
-              <View style={styles.accordionRight}>
-                <IconButton
-                  icon="pencil-outline"
-                  size={20}
-                  style={styles.downloadButton}
-                  onPress={() => router.push({ pathname: '/new-visit', params: { date: group.date } })}
-                />
-                <IconButton
-                  icon="download"
-                  size={20}
-                  style={styles.downloadButton}
-                  loading={exportingGroup === group.key}
-                  onPress={() => handleExportGroup(group)}
-                />
-                <MaterialCommunityIcons
-                  name={isExpanded ? 'chevron-up' : 'chevron-down'}
-                  size={24}
-                  color={theme.colors.onSurfaceVariant}
-                />
-              </View>
+          <Card key={group.key} style={styles.accordion} mode="outlined">
+            {/* Edit/Download used to sit inside List.Accordion's `right`
+                render prop, nested inside its own ripple-touchable row.
+                On Android, a ripple-based touchable frequently claims the
+                whole surface on touch-start before a nested child gets a
+                chance to respond, so those buttons silently did nothing.
+                Rebuilt as a plain row of true sibling touchables instead —
+                none of them nested inside another one — which is the only
+                layout Android's touch responder reliably honors. */}
+            <View style={styles.groupHeader}>
+              <Pressable style={styles.groupHeaderMain} onPress={() => setExpanded(isExpanded ? null : group.key)}>
+                <Text variant="titleSmall" style={styles.bold}>
+                  {group.date} — {group.salesPerson}
+                </Text>
+                <Text variant="bodySmall" style={styles.groupSubtitle}>
+                  {group.rows.length} visits · {totalKm.toFixed(1)} KM · ₹{totalFare.toFixed(2)} fare
+                </Text>
+              </Pressable>
+              <IconButton
+                icon="pencil-outline"
+                size={20}
+                style={styles.headerIcon}
+                onPress={() => router.push({ pathname: '/new-visit', params: { date: group.date } })}
+              />
+              <IconButton
+                icon="download"
+                size={20}
+                style={styles.headerIcon}
+                loading={exportingGroup === group.key}
+                onPress={() => handleExportGroup(group)}
+              />
+              <IconButton
+                icon={isExpanded ? 'chevron-up' : 'chevron-down'}
+                size={22}
+                style={styles.headerIcon}
+                onPress={() => setExpanded(isExpanded ? null : group.key)}
+              />
+            </View>
+
+            {isExpanded && (
+              <ScrollView horizontal showsHorizontalScrollIndicator>
+                <DataTable style={styles.table}>
+                  <DataTable.Header style={styles.row}>
+                    <Text style={[styles.cellText, styles.cellSno, styles.headerText]}>#</Text>
+                    <Text style={[styles.cellText, styles.cellMode, styles.headerText]}>Mode</Text>
+                    <Text style={[styles.cellText, styles.cellPlace, styles.headerText]}>Departure</Text>
+                    <Text style={[styles.cellText, styles.cellPlace, styles.headerText]}>Arrival</Text>
+                    <Text style={[styles.cellText, styles.cellNum, styles.headerText]}>KM/Fare</Text>
+                    <Text style={[styles.cellText, styles.cellPlace, styles.headerText]}>Met With</Text>
+                    <Text style={[styles.cellText, styles.cellFollowUp, styles.headerText]}>Follow-up</Text>
+                  </DataTable.Header>
+                  {group.rows.map((row, i) => {
+                    const isBus = row['Travel Mode'] === 'bus';
+                    return (
+                      <View key={i} style={styles.row}>
+                        <Text style={[styles.cellText, styles.cellSno]}>{row['S.No']}</Text>
+                        <Text style={[styles.cellText, styles.cellMode]}>{isBus ? 'Bus' : 'Bike'}</Text>
+                        <Text style={[styles.cellText, styles.cellPlace]} numberOfLines={1}>
+                          {row.Departure}
+                        </Text>
+                        <Text style={[styles.cellText, styles.cellPlace]} numberOfLines={1}>
+                          {row.Arrival}
+                        </Text>
+                        <Text style={[styles.cellText, styles.cellNum]}>
+                          {isBus ? `₹${row['Bus Fare']}` : row['Distance KM']}
+                        </Text>
+                        <Text style={[styles.cellText, styles.cellPlace]} numberOfLines={1}>
+                          {row['Met With']}
+                        </Text>
+                        <Text style={[styles.cellText, styles.cellFollowUp]}>
+                          {row['Follow Up Required'] === 'Yes' ? 'Yes' : '—'}
+                        </Text>
+                      </View>
+                    );
+                  })}
+                </DataTable>
+              </ScrollView>
             )}
-          >
-            <ScrollView horizontal showsHorizontalScrollIndicator>
-              <DataTable style={styles.table}>
-                <DataTable.Header style={styles.row}>
-                  <Text style={[styles.cellText, styles.cellSno, styles.headerText]}>#</Text>
-                  <Text style={[styles.cellText, styles.cellMode, styles.headerText]}>Mode</Text>
-                  <Text style={[styles.cellText, styles.cellPlace, styles.headerText]}>Departure</Text>
-                  <Text style={[styles.cellText, styles.cellPlace, styles.headerText]}>Arrival</Text>
-                  <Text style={[styles.cellText, styles.cellNum, styles.headerText]}>KM/Fare</Text>
-                  <Text style={[styles.cellText, styles.cellPlace, styles.headerText]}>Met With</Text>
-                  <Text style={[styles.cellText, styles.cellFollowUp, styles.headerText]}>Follow-up</Text>
-                </DataTable.Header>
-                {group.rows.map((row, i) => {
-                  const isBus = row['Travel Mode'] === 'bus';
-                  return (
-                    <View key={i} style={styles.row}>
-                      <Text style={[styles.cellText, styles.cellSno]}>{row['S.No']}</Text>
-                      <Text style={[styles.cellText, styles.cellMode]}>{isBus ? 'Bus' : 'Bike'}</Text>
-                      <Text style={[styles.cellText, styles.cellPlace]} numberOfLines={1}>
-                        {row.Departure}
-                      </Text>
-                      <Text style={[styles.cellText, styles.cellPlace]} numberOfLines={1}>
-                        {row.Arrival}
-                      </Text>
-                      <Text style={[styles.cellText, styles.cellNum]}>
-                        {isBus ? `₹${row['Bus Fare']}` : row['Distance KM']}
-                      </Text>
-                      <Text style={[styles.cellText, styles.cellPlace]} numberOfLines={1}>
-                        {row['Met With']}
-                      </Text>
-                      <Text style={[styles.cellText, styles.cellFollowUp]}>
-                        {row['Follow Up Required'] === 'Yes' ? 'Yes' : '—'}
-                      </Text>
-                    </View>
-                  );
-                })}
-              </DataTable>
-            </ScrollView>
-          </List.Accordion>
+          </Card>
         );
       })}
     </ScrollView>
@@ -274,8 +282,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#E2E4E8',
   },
-  accordionRight: { flexDirection: 'row', alignItems: 'center' },
-  downloadButton: { margin: 0 },
+  groupHeader: { flexDirection: 'row', alignItems: 'center', paddingRight: 4 },
+  groupHeaderMain: { flex: 1, paddingVertical: 12, paddingLeft: 16 },
+  groupSubtitle: { opacity: 0.6, marginTop: 2 },
+  headerIcon: { margin: 0 },
   // Fixed pixel widths (not flex) for every column, matched exactly
   // between the header row and each data row — inside a horizontally
   // scrolling container, flex-based widths don't have a stable parent

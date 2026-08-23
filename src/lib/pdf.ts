@@ -40,9 +40,6 @@ function buildHtml(report: DailyReport): string {
     })
     .join('');
 
-  const totalKm = report.rows.filter((r) => r.travelMode !== 'bus').reduce((sum, r) => sum + (r.distanceKm || 0), 0);
-  const totalFare = report.rows.filter((r) => r.travelMode === 'bus').reduce((sum, r) => sum + (r.busFare || 0), 0);
-
   // Travel mode is chosen once per day (see New Visit's day-level toggle),
   // so every row here shares it — the expense sheet's fare column and its
   // formula are decided once for the whole report, not per row.
@@ -85,9 +82,7 @@ function buildHtml(report: DailyReport): string {
           .feedback-row td { background: #f4f6f8; }
           .feedback-label { font-style: italic; color: #555; margin-right: 4px; }
           .flag { display: inline-block; margin-left: 4px; padding: 1px 5px; border-radius: 3px; background: #fce8cc; font-size: 9px; }
-          .summary { margin-top: 16px; font-size: 12px; }
-          .summary div { margin-top: 2px; }
-          .expense-table { font-size: 11px; }
+          .expense-table { font-size: 11px; margin-top: 8px; }
           .expense-table td.num, .expense-table th.num { text-align: right; }
           .expense-table .total-row td { background: #b8cce4; font-weight: 700; }
         </style>
@@ -111,11 +106,6 @@ function buildHtml(report: DailyReport): string {
           </thead>
           <tbody>${rowsHtml}</tbody>
         </table>
-        <div class="summary">
-          <div><strong>${report.rows.length}</strong> visits</div>
-          <div><strong>${totalKm.toFixed(1)} KM</strong> by bike</div>
-          <div><strong>₹${totalFare.toFixed(2)}</strong> bus fare</div>
-        </div>
 
         <h2>Expense Details</h2>
         <table class="expense-table">
