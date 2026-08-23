@@ -8,6 +8,7 @@ import {
   Chip,
   DataTable,
   IconButton,
+  Snackbar,
   Text,
   TextInput,
 } from 'react-native-paper';
@@ -49,6 +50,7 @@ export default function ReportsScreen() {
   const [exportingGroup, setExportingGroup] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [snackbar, setSnackbar] = useState('');
 
   const runSearch = useCallback(async () => {
     if (!isBackendConfigured()) {
@@ -90,14 +92,20 @@ export default function ReportsScreen() {
     try {
       const safeName = group.salesPerson.replace(/[^a-z0-9]+/gi, '_');
       await exportReportsToExcel(group.rows, `${group.date}-${safeName}.xlsx`);
+      setSnackbar('Export ready — check the share sheet.');
     } catch {
-      setError('Could not export that report.');
+      setSnackbar('Could not export that report.');
     } finally {
       setExportingGroup(null);
     }
   };
 
+  const handleEditGroup = (group: ReportGroup) => {
+    router.push({ pathname: '/new-visit', params: { date: group.date } });
+  };
+
   return (
+    <View style={styles.flex}>
     <ScrollView contentContainerStyle={styles.container}>
       {localReports.length > 0 && (
         <Card style={styles.card} mode="outlined">
@@ -180,42 +188,52 @@ export default function ReportsScreen() {
         const isExpanded = expanded === group.key;
         return (
           <Card key={group.key} style={styles.accordion} mode="outlined">
-            {/* Edit/Download used to sit inside List.Accordion's `right`
-                render prop, nested inside its own ripple-touchable row.
-                On Android, a ripple-based touchable frequently claims the
-                whole surface on touch-start before a nested child gets a
-                chance to respond, so those buttons silently did nothing.
-                Rebuilt as a plain row of true sibling touchables instead —
-                none of them nested inside another one — which is the only
-                layout Android's touch responder reliably honors. */}
-            <View style={styles.groupHeader}>
-              <Pressable style={styles.groupHeaderMain} onPress={() => setExpanded(isExpanded ? null : group.key)}>
-                <Text variant="titleSmall" style={styles.bold}>
-                  {group.date} — {group.salesPerson}
-                </Text>
-                <Text variant="bodySmall" style={styles.groupSubtitle}>
-                  {group.rows.length} visits · {totalKm.toFixed(1)} KM · ₹{totalFare.toFixed(2)} fare
-                </Text>
-              </Pressable>
-              <IconButton
+            {/* Edit/Download used to sit beside the title inside one flex
+                row — even as JSX siblings, IconButton is itself built on
+                TouchableRipple, and packed edge-to-edge with the title's
+                own Pressable in the same row left enough ambiguity in
+                Android's touch responder that taps on the small icons
+                weren't reliably registering. Actions now live on their
+                own row, entirely below the title's tap zone (not beside
+                it), as bigger labeled buttons — no shared row, no
+                shared edges, no ambiguity about which touchable a tap
+                belongs to. */}
+            <Pressable
+              style={styles.groupHeaderMain}
+              onPress={() => setExpanded(isExpanded ? null : group.key)}
+            >
+              <View style={styles.groupTitleRow}>
+                <View style={styles.groupTitleText}>
+                  <Text variant="titleSmall" style={styles.bold}>
+                    {group.date} — {group.salesPerson}
+                  </Text>
+                  <Text variant="bodySmall" style={styles.groupSubtitle}>
+                    {group.rows.length} visits · {totalKm.toFixed(1)} KM · ₹{totalFare.toFixed(2)} fare
+                  </Text>
+                </View>
+                <IconButton icon={isExpanded ? 'chevron-up' : 'chevron-down'} size={22} style={styles.headerIcon} />
+              </View>
+            </Pressable>
+            <View style={styles.groupActions}>
+              <Button
+                compact
+                mode="outlined"
                 icon="pencil-outline"
-                size={20}
-                style={styles.headerIcon}
-                onPress={() => router.push({ pathname: '/new-visit', params: { date: group.date } })}
-              />
-              <IconButton
+                onPress={() => handleEditGroup(group)}
+                style={styles.groupActionButton}
+              >
+                Edit
+              </Button>
+              <Button
+                compact
+                mode="outlined"
                 icon="download"
-                size={20}
-                style={styles.headerIcon}
                 loading={exportingGroup === group.key}
                 onPress={() => handleExportGroup(group)}
-              />
-              <IconButton
-                icon={isExpanded ? 'chevron-up' : 'chevron-down'}
-                size={22}
-                style={styles.headerIcon}
-                onPress={() => setExpanded(isExpanded ? null : group.key)}
-              />
+                style={styles.groupActionButton}
+              >
+                Download
+              </Button>
             </View>
 
             {isExpanded && (
@@ -261,10 +279,15 @@ export default function ReportsScreen() {
         );
       })}
     </ScrollView>
+      <Snackbar visible={!!snackbar} onDismiss={() => setSnackbar('')} duration={3000}>
+        {snackbar}
+      </Snackbar>
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
+  flex: { flex: 1 },
   container: { padding: 16, gap: 12 },
   card: {},
   cardContent: { gap: 12 },
@@ -282,10 +305,13 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#E2E4E8',
   },
-  groupHeader: { flexDirection: 'row', alignItems: 'center', paddingRight: 4 },
-  groupHeaderMain: { flex: 1, paddingVertical: 12, paddingLeft: 16 },
+  groupHeaderMain: { paddingTop: 12, paddingHorizontal: 16 },
+  groupTitleRow: { flexDirection: 'row', alignItems: 'center' },
+  groupTitleText: { flex: 1 },
   groupSubtitle: { opacity: 0.6, marginTop: 2 },
-  headerIcon: { margin: 0 },
+  headerIcon: { margin: 0, marginRight: -8 },
+  groupActions: { flexDirection: 'row', gap: 8, paddingHorizontal: 16, paddingBottom: 12 },
+  groupActionButton: { flex: 1 },
   // Fixed pixel widths (not flex) for every column, matched exactly
   // between the header row and each data row — inside a horizontally
   // scrolling container, flex-based widths don't have a stable parent
