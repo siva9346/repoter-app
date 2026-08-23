@@ -3,10 +3,10 @@ import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, View } from 're
 import { useForm, useFieldArray } from 'react-hook-form';
 import { useLocalSearchParams } from 'expo-router';
 import { format } from 'date-fns';
-import { Button, Card, Snackbar, Text, TextInput } from 'react-native-paper';
+import { Button, Card, SegmentedButtons, Snackbar, Text, TextInput } from 'react-native-paper';
 import { useReporterStore } from '@/lib/store';
 import { emptyVisitRow } from '@/lib/types';
-import type { DailyReport } from '@/lib/types';
+import type { DailyReport, TravelMode } from '@/lib/types';
 import type { ReportFormValues } from '@/lib/reportForm';
 import { shareDailyReportPdf } from '@/lib/pdf';
 import VisitRowCard from '@/components/VisitRowCard';
@@ -23,6 +23,7 @@ export default function NewVisitScreen() {
   const masterOptions = masters.map((m) => m.name).sort();
 
   const [date, setDate] = useState(() => params.date || todayStr());
+  const [travelMode, setTravelMode] = useState<TravelMode>('bike');
   const [submittingIndex, setSubmittingIndex] = useState<number | null>(null);
   const [sharingPdf, setSharingPdf] = useState(false);
   const [snackbar, setSnackbar] = useState<{ visible: boolean; message: string }>({ visible: false, message: '' });
@@ -51,11 +52,25 @@ export default function NewVisitScreen() {
     const existing = reports.find((r) => r.id === date);
     if (existing && existing.rows.length > 0) {
       reset({ date, rows: existing.rows });
+      setTravelMode(existing.rows[0].travelMode);
     } else {
-      reset({ date, rows: [emptyVisitRow(1)] });
+      reset({ date, rows: [emptyVisitRow(1, travelMode)] });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [date, settings]);
+
+  // Travel mode is a whole-day choice (a salesperson uses one vehicle for
+  // the day, not a different one per stop), so changing it here applies to
+  // every visit that isn't already submitted — submitted rows keep
+  // whatever mode they were actually sent with.
+  const handleTravelModeChange = (mode: TravelMode) => {
+    setTravelMode(mode);
+    getValues('rows').forEach((row, i) => {
+      if (!row.submitted) {
+        setValue(`rows.${i}.travelMode`, mode);
+      }
+    });
+  };
 
   const watchedRows = watch('rows');
   useEffect(() => {
@@ -97,7 +112,7 @@ export default function NewVisitScreen() {
     });
 
     if (index === fields.length - 1) {
-      append(emptyVisitRow(fields.length + 1));
+      append(emptyVisitRow(fields.length + 1, travelMode));
     }
   };
 
@@ -161,6 +176,19 @@ export default function NewVisitScreen() {
               placeholder="YYYY-MM-DD"
             />
           </Card.Content>
+          <Card.Content>
+            <Text variant="bodySmall" style={styles.travelModeLabel}>
+              Today&apos;s travel
+            </Text>
+            <SegmentedButtons
+              value={travelMode}
+              onValueChange={(v) => handleTravelModeChange(v as TravelMode)}
+              buttons={[
+                { value: 'bike', label: 'Bike', icon: 'motorbike' },
+                { value: 'bus', label: 'Bus', icon: 'bus' },
+              ]}
+            />
+          </Card.Content>
         </Card>
 
         <Text variant="bodySmall" style={styles.hint}>
@@ -182,7 +210,7 @@ export default function NewVisitScreen() {
           />
         ))}
 
-        <Button mode="outlined" icon="plus" onPress={() => append(emptyVisitRow(fields.length + 1))}>
+        <Button mode="outlined" icon="plus" onPress={() => append(emptyVisitRow(fields.length + 1, travelMode))}>
           Add Visit
         </Button>
 
@@ -209,6 +237,7 @@ const styles = StyleSheet.create({
   centeredText: { textAlign: 'center' },
   headerCard: {},
   headerRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 12 },
+  travelModeLabel: { opacity: 0.7, marginBottom: 6 },
   bold: { fontWeight: '700' },
   dateInput: { width: 160 },
   hint: { opacity: 0.7, textAlign: 'center' },

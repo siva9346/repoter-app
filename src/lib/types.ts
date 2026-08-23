@@ -60,11 +60,11 @@ export interface DailyReport {
   reportId?: string;
 }
 
-export function emptyVisitRow(sNo: number): VisitRow {
+export function emptyVisitRow(sNo: number, travelMode: TravelMode = 'bike'): VisitRow {
   return {
     localId: `${Date.now()}-${sNo}-${Math.random().toString(36).slice(2, 8)}`,
     sNo,
-    travelMode: 'bike',
+    travelMode,
     departure: '',
     startTime: '',
     arrival: '',

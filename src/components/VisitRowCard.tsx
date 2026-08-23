@@ -9,7 +9,6 @@ import {
   Divider,
   HelperText,
   IconButton,
-  SegmentedButtons,
   Text,
   TextInput,
   useTheme,
@@ -147,21 +146,6 @@ export default function VisitRowCard({
           <Text variant="labelSmall" style={styles.sectionLabel}>
             TRAVEL
           </Text>
-
-          <Controller
-            control={control}
-            name={`rows.${index}.travelMode`}
-            render={({ field }) => (
-              <SegmentedButtons
-                value={field.value}
-                onValueChange={field.onChange}
-                buttons={[
-                  { value: 'bike', label: 'Bike', icon: 'motorbike' },
-                  { value: 'bus', label: 'Bus', icon: 'bus' },
-                ]}
-              />
-            )}
-          />
 
           <Controller
             control={control}
