@@ -87,6 +87,7 @@ export function emptyVisitRow(sNo: number, travelMode: TravelMode = 'bike'): Vis
 }
 
 export function computeReportStatus(rows: VisitRow[]): ReportStatus {
-  if (rows.length === 0) return 'draft';
-  return rows.every((r) => r.synced) ? 'synced' : 'pending-sync';
+  const submittedRows = rows.filter((r) => r.submitted);
+  if (submittedRows.length === 0) return 'draft';
+  return submittedRows.every((r) => r.synced) ? 'synced' : 'pending-sync';
 }

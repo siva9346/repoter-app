@@ -1,5 +1,22 @@
+import { format } from 'date-fns';
 import type { RemoteReportRow } from './appsScript';
 import type { DailyReport } from './types';
+
+// report.date and today() elsewhere in the app are local calendar dates
+// (date-fns `format`), not UTC. `Date#toISOString` renders in UTC, which
+// in timezones ahead of UTC (e.g. IST, +5:30) names the wrong calendar
+// day for the first few hours after local midnight — bucket keys here
+// must be derived the same local way or they silently drift by a day.
+const localDateKey = (d: Date) => format(d, 'yyyy-MM-dd');
+
+// `new Date('yyyy-MM-dd')` parses as UTC midnight, not local midnight —
+// in timezones behind UTC that lands on the previous local day, throwing
+// off the getDay()/getDate() arithmetic below. Build the Date from its
+// local-time constructor instead so it always lands on the intended day.
+function parseLocalDate(dateStr: string): Date {
+  const [year, month, day] = dateStr.split('-').map(Number);
+  return new Date(year, month - 1, day);
+}
 
 export interface VisitRecord {
   date: string;
@@ -62,7 +79,7 @@ export function dailySeries(records: VisitRecord[], days: number) {
   for (let i = days - 1; i >= 0; i--) {
     const d = new Date();
     d.setDate(d.getDate() - i);
-    const key = d.toISOString().slice(0, 10);
+    const key = localDateKey(d);
     const entry = byDate.get(key) || { visits: 0, distance: 0 };
     result.push({ date: key.slice(5), visits: entry.visits, distance: Math.round(entry.distance * 10) / 10 });
   }
@@ -73,10 +90,10 @@ export function weeklySeries(records: VisitRecord[], weeks: number) {
   const result: { week: string; visits: number; distance: number }[] = [];
   const byWeek = new Map<string, { visits: number; distance: number }>();
   for (const r of records) {
-    const d = new Date(r.date);
+    const d = parseLocalDate(r.date);
     const weekStart = new Date(d);
     weekStart.setDate(d.getDate() - d.getDay());
-    const key = weekStart.toISOString().slice(0, 10);
+    const key = localDateKey(weekStart);
     const entry = byWeek.get(key) || { visits: 0, distance: 0 };
     entry.visits += 1;
     entry.distance += r.distanceKm;
@@ -86,7 +103,7 @@ export function weeklySeries(records: VisitRecord[], weeks: number) {
   for (let i = weeks - 1; i >= 0; i--) {
     const weekStart = new Date(now);
     weekStart.setDate(now.getDate() - now.getDay() - i * 7);
-    const key = weekStart.toISOString().slice(0, 10);
+    const key = localDateKey(weekStart);
     const entry = byWeek.get(key) || { visits: 0, distance: 0 };
     result.push({ week: key.slice(5), visits: entry.visits, distance: Math.round(entry.distance * 10) / 10 });
   }
